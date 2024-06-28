@@ -51,6 +51,7 @@ struct App {
     mode: Mode,
     selected_tab: AppTab,
     selected_search_row: TableState,
+    search_results: Vec<Vec<String>>,
     tabs: Vec<String>,
 }
 
@@ -77,6 +78,28 @@ impl App {
             mode: Mode::Normal,
             selected_tab: AppTab::Search,
             selected_search_row: TableState::default().with_selected(Some(0)),
+            search_results: vec![
+                vec![
+                    String::from("3D in TypeScript using Ray Casting"),
+                    String::from("Tsoding Daily"),
+                    String::from("video"),
+                ],
+                vec![
+                    String::from("Unreasonable Effectiveness of Abstractions"),
+                    String::from("Tsoding Daily"),
+                    String::from("video")
+                ],
+                vec![
+                    String::from("Is John Carmack Right about UI?!"),
+                    String::from("Tsoding Daily"),
+                    String::from("video")
+                ],
+                vec![
+                    String::from("Can C actually do Perfect Bézier Curves?"),
+                    String::from("Tsoding Daily"),
+                    String::from("video")
+                ],
+            ],
             tabs: vec![
                 String::from(" Search "),
                 String::from(" Subs ")
@@ -186,7 +209,7 @@ impl App {
 
     fn select_next_search_row(&mut self) {
         let i = match self.selected_search_row.selected() {
-            Some(i) => if i >= 30 - 1 {0} else {i + 1},
+            Some(i) => if i >= self.search_results.len() - 1 {i} else {i + 1},
             None => 0
         };
 
@@ -234,38 +257,10 @@ impl App {
         let results_block = Block::bordered()
             .title("Results");
 
-        let table_data = [
-            Row::new(vec!["3D in TypeScript using Ray Casting", "Tsoding Daily", "video"]),
-            Row::new(vec!["Why I Don&#39;t Code in Haskell Anymore?", "Tsoding Daily", "video"]),
-            Row::new(vec!["Ok, but can you do this in C?", "Tsoding Daily", "video"]),
-            Row::new(vec!["Test Anything with Python", "Tsoding Daily", "video"]),
-            Row::new(vec!["Hacking Raylib", "Tsoding Daily", "video"]),
-            Row::new(vec!["Cracking Secret Message with C and Computer Vision", "Tsoding Daily", "video"]),
-            Row::new(vec!["Will Ada Replace C/C++?", "Tsoding", "video"]),
-            Row::new(vec!["Can you actually see more than 30 FPS?", "Tsoding Daily", "video"]),
-            Row::new(vec!["Is this the Future of Programming Languages?", "Tsoding Daily", "video"]),
-            Row::new(vec!["What Keyboard do I use as a Professional Software Developer", "Tsoding Daily", "video"]),
-            Row::new(vec!["Hare Programming Language", "Tsoding Daily", "video"]),
-            Row::new(vec!["My Next Video Project (Tula Ep.01)", "Tsoding Daily", "video"]),
-            Row::new(vec!["Clean Code and Successful Career in Software Development", "Tsoding Daily", "video"]),
-            Row::new(vec!["Why do C Programmers Always Obfuscate Their Code?", "Tsoding Daily", "video"]),
-            Row::new(vec!["I fixed Lua", "Tsoding Daily", "video"]),
-            Row::new(vec!["I tried React and it Ruined My Life", "Tsoding Daily", "video"]),
-            Row::new(vec!["The Most Bizarre and Fascinating Project I&#39;ve seen!", "Tsoding Daily", "video"]),
-            Row::new(vec!["OOP in Pure C", "Tsoding Daily", "video"]),
-            Row::new(vec!["I made JIT Compiler for Brainf*ck lol", "Tsoding Daily", "video"]),
-            Row::new(vec!["This is better than TempleOS", "Tsoding Daily", "video"]),
-            Row::new(vec!["GameDev in Assembly?!", "Tsoding Daily", "video"]),
-            Row::new(vec!["You don&#39;t need DOM", "Tsoding Daily", "video"]),
-            Row::new(vec!["Why is C Compiler So Smart?", "Tsoding Daily", "video"]),
-            Row::new(vec!["Writing Garbage Collector in C", "Tsoding Daily", "video"]),
-            Row::new(vec!["Mini Excel in C — Part 1", "Tsoding Daily", "video"]),
-            Row::new(vec!["Parsing Lisp with Rust (Tula Ep.03)", "Tsoding Daily", "video"]),
-            Row::new(vec!["Is C++ better than C?", "Tsoding Daily", "video"]),
-            Row::new(vec!["Unreasonable Effectiveness of Abstractions", "Tsoding Daily", "video"]),
-            Row::new(vec!["Is John Carmack Right about UI?!", "Tsoding Daily", "video"]),
-            Row::new(vec!["Can C actually do Perfect Bézier Curves?", "Tsoding Daily", "video"]),
-        ];
+        let table_data: Vec<_> = self.search_results
+            .iter()
+            .map(|data| Row::new(data.iter().map(|cell| cell.clone())))
+            .collect();
 
         StatefulWidget::render(
             Table::new(
