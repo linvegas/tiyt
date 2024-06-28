@@ -31,6 +31,12 @@ use ratatui::{
     },
 };
 
+#[derive(Clone, Copy)]
+enum Mode {
+    Normal,
+    Insert,
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum AppTab {
     Search,
@@ -39,7 +45,10 @@ enum AppTab {
 
 struct App {
     // message: String,
+    search_input: String,
+    search_input_index: usize,
     running: bool,
+    mode: Mode,
     selected_tab: AppTab,
     selected_search_row: TableState,
     tabs: Vec<String>,
@@ -62,7 +71,10 @@ fn main() -> io::Result<()> {
 impl App {
     fn new() -> Self {
         Self {
+            search_input: String::new(),
+            search_input_index: 0,
             running: true,
+            mode: Mode::Normal,
             selected_tab: AppTab::Search,
             selected_search_row: TableState::default().with_selected(Some(0)),
             tabs: vec![
@@ -81,34 +93,95 @@ impl App {
     }
 
     fn draw(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
-        terminal.draw(|frame| frame.render_widget(self, frame.size()))?;
+        terminal.draw(|frame| {
+            match self.mode {
+                Mode::Normal => {},
+                Mode::Insert => frame.set_cursor(self.search_input_index as u16 + 1, 2),
+            }
+            frame.render_widget(self, frame.size());
+        })?;
         Ok(())
     }
 
     fn handle_event(&mut self) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Press {
-                match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => self.running = false,
-                    KeyCode::Char('j') | KeyCode::Down => {
-                        match self.selected_tab {
-                            AppTab::Search => self.select_next_search_row(),
+            match self.mode {
+                Mode::Normal => {
+                    if key.kind == KeyEventKind::Press {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Esc => self.running = false,
+                            KeyCode::Char('j') | KeyCode::Down => {
+                                match self.selected_tab {
+                                    AppTab::Search => self.select_next_search_row(),
+                                    _ => {}
+                                }
+                            },
+                            KeyCode::Char('k') | KeyCode::Up => {
+                                match self.selected_tab {
+                                    AppTab::Search => self.select_prev_search_row(),
+                                    _ => {}
+                                }
+                            },
+                            KeyCode::Char('i') => self.mode = Mode::Insert,
+                            KeyCode::Char('1') => self.selected_tab = AppTab::Search,
+                            KeyCode::Char('2') => self.selected_tab = AppTab::Subs,
                             _ => {}
                         }
-                    },
-                    KeyCode::Char('k') | KeyCode::Up => {
-                        match self.selected_tab {
-                            AppTab::Search => self.select_prev_search_row(),
-                            _ => {}
-                        }
-                    },
-                    KeyCode::Char('1') => self.selected_tab = AppTab::Search,
-                    KeyCode::Char('2') => self.selected_tab = AppTab::Subs,
-                    _ => {}
-                }
+                    }
+                },
+                Mode::Insert => {
+                    match key.code {
+                        KeyCode::Char(c)   => self.insert_search_char(c),
+                        KeyCode::Backspace => self.delete_search_char(),
+                        KeyCode::Enter     => self.reset_input(),
+                        KeyCode::Left      => self.move_cursor_left(),
+                        KeyCode::Right     => self.move_cursor_right(),
+                        KeyCode::Esc       => self.mode = Mode::Normal,
+                        _ => {},
+                    }
+                },
             }
         }
         Ok(())
+    }
+
+    fn insert_search_char(&mut self, c: char) {
+        self.search_input.insert(self.search_input_index, c);
+        self.search_input_index += 1;
+    }
+
+    // I don't like how this looks...
+    fn delete_search_char(&mut self) {
+        if self.search_input_index != 0 {
+            let current_index = self.search_input_index;
+            let from_left_to_current_index = current_index - 1;
+
+            let before_char_to_delete = self.search_input.chars().take(from_left_to_current_index);
+            let after_char_to_delete = self.search_input.chars().skip(current_index);
+
+            self.search_input = before_char_to_delete.chain(after_char_to_delete).collect();
+
+            self.search_input_index = self.search_input_index
+                .saturating_sub(1)
+                .clamp(0, self.search_input.chars().count());
+        }
+    }
+
+    fn move_cursor_left(&mut self) {
+        self.search_input_index = self.search_input_index
+            .saturating_sub(1)
+            .clamp(0, self.search_input.chars().count());
+    }
+
+    fn move_cursor_right(&mut self) {
+        self.search_input_index = self.search_input_index
+            .saturating_add(1)
+            .clamp(0, self.search_input.chars().count());
+    }
+
+    fn reset_input(&mut self) {
+        self.search_input.clear();
+        self.search_input_index = 0;
     }
 
     fn select_next_search_row(&mut self) {
@@ -147,8 +220,15 @@ impl App {
 
         let [input, results] = search_layout.areas(area);
 
-        Paragraph::new("Le hecking tsoding")
-            .block(Block::bordered().title("Input"))
+        // Terminal::set_cursor(input.x, input.y);
+
+        let input_style = match self.mode {
+            Mode::Insert => Style::default().fg(Color::Yellow),
+            _ => Style::default(),
+        };
+
+        Paragraph::new(self.search_input.as_str())
+            .block(Block::bordered().title("Input").style(input_style))
             .render(input, buffer);
 
         let results_block = Block::bordered()
