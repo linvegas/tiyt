@@ -82,22 +82,22 @@ impl App {
                 vec![
                     String::from("3D in TypeScript using Ray Casting"),
                     String::from("Tsoding Daily"),
-                    String::from("video"),
+                    String::from("01h:24m:00s"),
                 ],
                 vec![
                     String::from("Unreasonable Effectiveness of Abstractions"),
                     String::from("Tsoding Daily"),
-                    String::from("video")
+                    String::from("02h:32m:00s")
                 ],
                 vec![
                     String::from("Is John Carmack Right about UI?!"),
                     String::from("Tsoding Daily"),
-                    String::from("video")
+                    String::from("30m:00s")
                 ],
                 vec![
                     String::from("Can C actually do Perfect Bézier Curves?"),
                     String::from("Tsoding Daily"),
-                    String::from("video")
+                    String::from("12m:00s")
                 ],
             ],
             tabs: vec![
@@ -268,7 +268,7 @@ impl App {
                 [Constraint::Percentage(50), Constraint::Percentage(30), Constraint::Percentage(20)]
             )
             .header(
-                Row::new(vec!["Title", "Channel", "Type"])
+                Row::new(vec!["Title", "Channel", "Duration"])
                 .style(Style::default().bold().fg(Color::Green))
                 .bottom_margin(0)
             )
