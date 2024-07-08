@@ -1,4 +1,7 @@
 use std::io;
+use std::process::Command;
+
+mod api;
 
 use crossterm::{
     ExecutableCommand,
@@ -19,7 +22,7 @@ use crossterm::{
 use ratatui::{
     Terminal,
     prelude::{
-        /*Text,*/ Rect, Widget, Buffer, Layout,
+        Text, Rect, Widget, Buffer, Layout,
         Color, Style, Backend, Constraint,
         CrosstermBackend, StatefulWidget
     },
@@ -148,6 +151,19 @@ impl App {
                             KeyCode::Char('i') => self.mode = Mode::Insert,
                             KeyCode::Char('1') => self.selected_tab = AppTab::Search,
                             KeyCode::Char('2') => self.selected_tab = AppTab::Subs,
+                            KeyCode::Enter     => {
+                                match self.selected_search_row.selected() {
+                                    Some(i) => {
+                                        match self.search_results[i].last() {
+                                            Some(s) => {
+                                                let _ = Command::new("mpv").args(["--fs", s]).output();
+                                            },
+                                            None => {},
+                                        }
+                                    },
+                                    None => {},
+                                };
+                            },
                             _ => {}
                         }
                     }
@@ -156,7 +172,7 @@ impl App {
                     match key.code {
                         KeyCode::Char(c)   => self.insert_search_char(c),
                         KeyCode::Backspace => self.delete_search_char(),
-                        KeyCode::Enter     => self.reset_input(),
+                        KeyCode::Enter     => self.submit_input(),
                         KeyCode::Left      => self.move_cursor_left(),
                         KeyCode::Right     => self.move_cursor_right(),
                         KeyCode::Esc       => self.mode = Mode::Normal,
@@ -202,9 +218,13 @@ impl App {
             .clamp(0, self.search_input.chars().count());
     }
 
-    fn reset_input(&mut self) {
+    fn submit_input(&mut self) {
+        self.search_results = api::search(&self.search_input);
+
         self.search_input.clear();
         self.search_input_index = 0;
+        self.mode = Mode::Normal;
+        self.selected_search_row.select(Some(0));
     }
 
     fn select_next_search_row(&mut self) {
@@ -243,8 +263,6 @@ impl App {
 
         let [input, results] = search_layout.areas(area);
 
-        // Terminal::set_cursor(input.x, input.y);
-
         let input_style = match self.mode {
             Mode::Insert => Style::default().fg(Color::Yellow),
             _ => Style::default(),
@@ -262,21 +280,24 @@ impl App {
             .map(|data| Row::new(data.iter().map(|cell| cell.clone())))
             .collect();
 
-        StatefulWidget::render(
-            Table::new(
-                table_data,
-                [Constraint::Percentage(50), Constraint::Percentage(30), Constraint::Percentage(20)]
-            )
-            .header(
-                Row::new(vec!["Title", "Channel", "Duration"])
-                .style(Style::default().bold().fg(Color::Green))
-                .bottom_margin(0)
-            )
-            // .highlight_style(Style::new().bg(Color::Blue).fg(Color::White))
-            .highlight_style(Style::new().reversed())
-            .block(results_block),
-            results, buffer, &mut self.selected_search_row
-        );
+        if table_data.is_empty() {
+            Text::raw("No results").render(results, buffer);
+        } else {
+            StatefulWidget::render(
+                Table::new(
+                    table_data,
+                    [Constraint::Percentage(50), Constraint::Percentage(30), Constraint::Percentage(20)]
+                )
+                .header(
+                    Row::new(vec!["Title", "Channel", "Duration"])
+                    .style(Style::default().bold().fg(Color::Green))
+                    .bottom_margin(0)
+                )
+                .highlight_style(Style::new().reversed())
+                .block(results_block),
+                results, buffer, &mut self.selected_search_row
+            );
+        }
 
         // List::new(vec!["Item", "Item", "Item", "Item", "Item", "Item", "Item"])
         //     .block(results_block)
@@ -298,7 +319,6 @@ impl App {
         Block::bordered()
             .title("Feed")
             .render(feed, buffer);
-        // Text::raw("Subs Tab").render(area, buffer);
     }
 }
 
