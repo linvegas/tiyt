@@ -22,10 +22,11 @@ use crossterm::{
 use ratatui::{
     Terminal,
     prelude::{
-        Text, Rect, Widget, Buffer, Layout,
-        Color, Style, Backend, Constraint,
+        /*Text,*/ Rect, Widget, Buffer, Layout,
+        Color, Style, Backend, Constraint, Line,
         CrosstermBackend, StatefulWidget
     },
+    // layout::Flex,
     style::Stylize,
     widgets::{
         Tabs, Table, // Borders,
@@ -51,6 +52,7 @@ struct App {
     search_input: String,
     search_input_index: usize,
     running: bool,
+    show_info: bool,
     mode: Mode,
     selected_tab: AppTab,
     selected_search_row: TableState,
@@ -78,31 +80,11 @@ impl App {
             search_input: String::new(),
             search_input_index: 0,
             running: true,
+            show_info: false,
             mode: Mode::Normal,
             selected_tab: AppTab::Search,
             selected_search_row: TableState::default().with_selected(Some(0)),
-            search_results: vec![
-                vec![
-                    String::from("3D in TypeScript using Ray Casting"),
-                    String::from("Tsoding Daily"),
-                    String::from("01h:24m:00s"),
-                ],
-                vec![
-                    String::from("Unreasonable Effectiveness of Abstractions"),
-                    String::from("Tsoding Daily"),
-                    String::from("02h:32m:00s")
-                ],
-                vec![
-                    String::from("Is John Carmack Right about UI?!"),
-                    String::from("Tsoding Daily"),
-                    String::from("30m:00s")
-                ],
-                vec![
-                    String::from("Can C actually do Perfect Bézier Curves?"),
-                    String::from("Tsoding Daily"),
-                    String::from("12m:00s")
-                ],
-            ],
+            search_results: Vec::new(),
             tabs: vec![
                 String::from(" Search "),
                 String::from(" Subs ")
@@ -148,7 +130,8 @@ impl App {
                                     _ => {}
                                 }
                             },
-                            KeyCode::Char('i') => self.mode = Mode::Insert,
+                            KeyCode::Char('s') => self.mode = Mode::Insert,
+                            KeyCode::Char('i') => self.show_search_info(),
                             KeyCode::Char('1') => self.selected_tab = AppTab::Search,
                             KeyCode::Char('2') => self.selected_tab = AppTab::Subs,
                             KeyCode::Enter     => {
@@ -245,6 +228,12 @@ impl App {
         self.selected_search_row.select(Some(i));
     }
 
+    fn show_search_info(&mut self) {
+        if !self.search_results.is_empty() {
+            self.show_info = !self.show_info;
+        }
+    }
+
     fn render_tabs(&mut self, area: Rect, buffer: &mut Buffer) {
         Tabs::new(self.tabs.iter().map(|i| i.to_string()))
             .select(self.selected_tab as usize)
@@ -272,6 +261,13 @@ impl App {
             .block(Block::bordered().title("Input").style(input_style))
             .render(input, buffer);
 
+        let result_layout = Layout::horizontal([
+            Constraint::Percentage(if self.show_info { 70 } else { 100 }),
+            Constraint::Min(0),
+        ]);
+
+        let [results_list, info] = result_layout.areas(results);
+
         let results_block = Block::bordered()
             .title("Results");
 
@@ -281,7 +277,7 @@ impl App {
             .collect();
 
         if table_data.is_empty() {
-            Text::raw("No results").render(results, buffer);
+            Paragraph::new("No results, yet...").block(results_block).render(results, buffer);
         } else {
             StatefulWidget::render(
                 Table::new(
@@ -295,8 +291,33 @@ impl App {
                 )
                 .highlight_style(Style::new().reversed())
                 .block(results_block),
-                results, buffer, &mut self.selected_search_row
+                results_list, buffer, &mut self.selected_search_row
             );
+
+            let info_block = Block::bordered()
+                .title("Info");
+
+            if self.show_info {
+                let mut index = 0;
+                if let Some(i) = self.selected_search_row.selected() {
+                    index = i;
+                };
+
+                let lines = vec![
+                    Line::from("Title: ").style(Color::Green),
+                    Line::from(self.search_results[index][0].clone()),
+                    Line::from("Channel: ").style(Color::Green),
+                    Line::from(self.search_results[index][1].clone()),
+                    Line::from("Duration: ").style(Color::Green),
+                    Line::from(self.search_results[index][2].clone()),
+                    Line::from("Link: ").style(Color::Green),
+                    Line::from(format!("https://youtube.com/watch?v={}", self.search_results[index][3].clone())),
+                ];
+
+                Paragraph::new(lines)
+                    .block(info_block)
+                    .render(info, buffer);
+            }
         }
 
         // List::new(vec!["Item", "Item", "Item", "Item", "Item", "Item", "Item"])
