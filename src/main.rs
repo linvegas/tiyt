@@ -1,5 +1,5 @@
 use std::io;
-use std::process::Command;
+use std::env;
 
 mod api;
 
@@ -61,6 +61,8 @@ struct App {
 }
 
 fn main() -> io::Result<()> {
+    dotenv::dotenv().ok();
+
     io::stdout().execute(EnterAlternateScreen)?;
     enable_raw_mode()?;
 
@@ -134,19 +136,7 @@ impl App {
                             KeyCode::Char('i') => self.show_search_info(),
                             KeyCode::Char('1') => self.selected_tab = AppTab::Search,
                             KeyCode::Char('2') => self.selected_tab = AppTab::Subs,
-                            KeyCode::Enter     => {
-                                match self.selected_search_row.selected() {
-                                    Some(i) => {
-                                        match self.search_results[i].last() {
-                                            Some(s) => {
-                                                let _ = Command::new("mpv").args(["--fs", s]).output();
-                                            },
-                                            None => {},
-                                        }
-                                    },
-                                    None => {},
-                                };
-                            },
+                            KeyCode::Enter     => self.play_video(),
                             _ => {}
                         }
                     }
@@ -208,6 +198,24 @@ impl App {
         self.search_input_index = 0;
         self.mode = Mode::Normal;
         self.selected_search_row.select(Some(0));
+    }
+
+    fn play_video(&mut self) {
+        if let Some(index) = self.selected_search_row.selected() {
+            if let Some(link) = self.search_results[index].last() {
+                let mpv_option = env::var("MPV_OPTION");
+
+                let mpv_option = match mpv_option {
+                    Ok(s) => s,
+                    Err(_) => String::new(),
+                };
+
+                let _ = std::process::Command::new("mpv")
+                    .args(mpv_option.split_whitespace())
+                    .arg(link)
+                    .output();
+            }
+        }
     }
 
     fn select_next_search_row(&mut self) {
@@ -311,7 +319,7 @@ impl App {
                     Line::from("Duration: ").style(Color::Green),
                     Line::from(self.search_results[index][2].clone()),
                     Line::from("Link: ").style(Color::Green),
-                    Line::from(format!("https://youtube.com/watch?v={}", self.search_results[index][3].clone())),
+                    Line::from(self.search_results[index][3].clone()),
                 ];
 
                 Paragraph::new(lines)

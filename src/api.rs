@@ -1,5 +1,5 @@
 use std::env;
-use dotenv;
+// use dotenv;
 use tokio;
 use reqwest;
 use serde_json;
@@ -46,7 +46,7 @@ struct SearchResponse {
 }
 
 async fn get_search_resutls(query: &str) -> Result<(SearchResponse, VideoDetailResponse), reqwest::Error> {
-    dotenv::dotenv().ok();
+    // dotenv::dotenv().ok();
     let api_key = env::var("API_KEY").unwrap();
 
     let search_url = format!(
