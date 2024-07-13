@@ -22,3 +22,9 @@ Building and running:
 ```shell
 cargo run
 ```
+
+mpv flags example: (use it inside a `.env` file)
+
+```shell
+MPV_OPTION='--fs --ytdl-format=best[height<=720]'
+```
