@@ -1,5 +1,4 @@
 use std::env;
-// use dotenv;
 use tokio;
 use reqwest;
 use serde_json;
@@ -12,8 +11,15 @@ struct VideoContentDetail {
 
 #[allow(non_snake_case)]
 #[derive(Debug, Deserialize)]
+struct VideoStatisticsDetail {
+    viewCount: String,
+}
+
+#[allow(non_snake_case)]
+#[derive(Debug, Deserialize)]
 struct VideoDetailItem {
-    contentDetails: VideoContentDetail
+    contentDetails: VideoContentDetail,
+    statistics: VideoStatisticsDetail
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,7 +30,9 @@ struct VideoDetailResponse {
 #[allow(non_snake_case)]
 #[derive(Debug, Deserialize)]
 struct VideoSnippet {
+    publishedAt: String,
     title: String,
+    description: String,
     channelTitle: String,
 }
 
@@ -46,11 +54,11 @@ struct SearchResponse {
 }
 
 async fn get_search_resutls(query: &str) -> Result<(SearchResponse, VideoDetailResponse), reqwest::Error> {
-    // dotenv::dotenv().ok();
+    dotenv::dotenv().ok();
     let api_key = env::var("API_KEY").unwrap();
 
     let search_url = format!(
-        "https://www.googleapis.com/youtube/v3/search?key={}&part=snippet&q={}&type=video&maxResults=30",
+        "https://www.googleapis.com/youtube/v3/search?key={}&q={}&part=snippet&type=video&maxResults=40",
         api_key, query
     );
 
@@ -71,7 +79,7 @@ async fn get_search_resutls(query: &str) -> Result<(SearchResponse, VideoDetailR
     let video_ids = video_ids.join(",");
 
     let details_url = format!(
-        "https://www.googleapis.com/youtube/v3/videos?key={}&id={}&part=contentDetails",
+        "https://www.googleapis.com/youtube/v3/videos?key={}&id={}&part=contentDetails&part=statistics",
         api_key, video_ids
     );
 
@@ -104,14 +112,16 @@ pub fn search(query: &str) -> Vec<Vec<String>> {
             vec![
                 search.snippet.title.clone(),
                 search.snippet.channelTitle.clone(),
+                search.snippet.publishedAt.clone(),
                 detail.contentDetails.duration.clone(),
-                format!("https://youtube.com/watch?v={}", search.id.videoId).clone()
+                detail.statistics.viewCount.clone(),
+                format!("https://youtube.com/watch?v={}", search.id.videoId).clone(),
+                search.snippet.description.clone(),
             ]
         );
     }
 
     return data
-    // println!("{:?}", data);
 }
 
 // fn main() {
@@ -127,13 +137,14 @@ pub fn search(query: &str) -> Vec<Vec<String>> {
 //         .block_on(get_search_resutls(&query))
 //         .unwrap();
 //
-//     let mut data: Vec<Vec<String>> = Vec::new();
-//
 //     for (search, detail) in results.items.iter().zip(details.items.iter()) {
 //         println!("-------------");
-//         println!("title:    {}", search.snippet.title);
-//         println!("channel:  {}", search.snippet.channelTitle);
-//         println!("duration: {}", detail.contentDetails.duration);
-//         println!("link:     https://youtube.com/watch?v={}", search.id.videoId);
+//         println!("title:        {}", search.snippet.title);
+//         println!("channel:      {}", search.snippet.channelTitle);
+//         println!("published at: {}", search.snippet.publishedAt);
+//         println!("duration:     {}", detail.contentDetails.duration);
+//         println!("views:        {}", detail.statistics.viewCount);
+//         println!("link:         https://youtube.com/watch?v={}", search.id.videoId);
+//         println!("description:  {}", search.snippet.description);
 //     }
 // }

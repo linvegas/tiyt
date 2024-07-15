@@ -47,8 +47,21 @@ enum AppTab {
     Subs
 }
 
+struct SearchItem {
+    title: String,
+    channel: String,
+    duration: String,
+    publish_time: String,
+    view_count: String,
+    link: String,
+    description: String,
+}
+
+struct SearchResults {
+    items: Vec<SearchItem>,
+}
+
 struct App {
-    // message: String,
     search_input: String,
     search_input_index: usize,
     running: bool,
@@ -56,7 +69,7 @@ struct App {
     mode: Mode,
     selected_tab: AppTab,
     selected_search_row: TableState,
-    search_results: Vec<Vec<String>>,
+    search_results: SearchResults,
     tabs: Vec<String>,
 }
 
@@ -86,7 +99,7 @@ impl App {
             mode: Mode::Normal,
             selected_tab: AppTab::Search,
             selected_search_row: TableState::default().with_selected(Some(0)),
-            search_results: Vec::new(),
+            search_results: SearchResults {items: Vec::new()},
             tabs: vec![
                 String::from(" Search "),
                 String::from(" Subs ")
@@ -192,7 +205,21 @@ impl App {
     }
 
     fn submit_input(&mut self) {
-        self.search_results = api::search(&self.search_input);
+        let data: Vec<Vec<String>> = api::search(&self.search_input);
+
+        self.search_results = SearchResults {
+            items: data.into_iter().map(|item| {
+                SearchItem {
+                    title:        item[0].clone(),
+                    channel:      item[1].clone(),
+                    publish_time: item[2].clone(),
+                    duration:     item[3].clone(),
+                    view_count:   item[4].clone(),
+                    link:         item[5].clone(),
+                    description:  item[6].clone(),
+                }
+            }).collect()
+        };
 
         self.search_input.clear();
         self.search_input_index = 0;
@@ -202,25 +229,25 @@ impl App {
 
     fn play_video(&mut self) {
         if let Some(index) = self.selected_search_row.selected() {
-            if let Some(link) = self.search_results[index].last() {
-                let mpv_option = env::var("MPV_OPTION");
+            let link = &self.search_results.items[index].link;
 
-                let mpv_option = match mpv_option {
-                    Ok(s) => s,
-                    Err(_) => String::new(),
-                };
+            let mpv_option = env::var("MPV_OPTION");
 
-                let _ = std::process::Command::new("mpv")
-                    .args(mpv_option.split_whitespace())
-                    .arg(link)
-                    .output();
-            }
+            let mpv_option = match mpv_option {
+                Ok(s) => s,
+                Err(_) => String::new(),
+            };
+
+            let _ = std::process::Command::new("mpv")
+                .args(mpv_option.split_whitespace())
+                .arg(link)
+                .output();
         }
     }
 
     fn select_next_search_row(&mut self) {
         let i = match self.selected_search_row.selected() {
-            Some(i) => if i >= self.search_results.len() - 1 {i} else {i + 1},
+            Some(i) => if i >= self.search_results.items.len() - 1 {i} else {i + 1},
             None => 0
         };
 
@@ -237,7 +264,7 @@ impl App {
     }
 
     fn show_search_info(&mut self) {
-        if !self.search_results.is_empty() {
+        if !self.search_results.items.is_empty() {
             self.show_info = !self.show_info;
         }
     }
@@ -279,9 +306,9 @@ impl App {
         let results_block = Block::bordered()
             .title("Results");
 
-        let table_data: Vec<_> = self.search_results
+        let table_data: Vec<_> = self.search_results.items
             .iter()
-            .map(|data| Row::new(data.iter().map(|cell| cell.clone())))
+            .map(|r| Row::new(vec![r.title.clone(), r.channel.clone(), r.duration.clone()]))
             .collect();
 
         if table_data.is_empty() {
@@ -313,13 +340,19 @@ impl App {
 
                 let lines = vec![
                     Line::from("Title: ").style(Color::Green),
-                    Line::from(self.search_results[index][0].clone()),
+                    Line::from(self.search_results.items[index].title.clone()),
                     Line::from("Channel: ").style(Color::Green),
-                    Line::from(self.search_results[index][1].clone()),
+                    Line::from(self.search_results.items[index].channel.clone()),
+                    Line::from("Views: ").style(Color::Green),
+                    Line::from(self.search_results.items[index].view_count.clone()),
+                    Line::from("Publish time: ").style(Color::Green),
+                    Line::from(self.search_results.items[index].publish_time.clone()),
                     Line::from("Duration: ").style(Color::Green),
-                    Line::from(self.search_results[index][2].clone()),
+                    Line::from(self.search_results.items[index].duration.clone()),
                     Line::from("Link: ").style(Color::Green),
-                    Line::from(self.search_results[index][3].clone()),
+                    Line::from(self.search_results.items[index].link.clone()),
+                    Line::from("Description: ").style(Color::Green),
+                    Line::from(self.search_results.items[index].description.clone()),
                 ];
 
                 Paragraph::new(lines)
