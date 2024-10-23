@@ -27,10 +27,9 @@ Building and running:
 cargo run
 ```
 
-You need to create a `.env` to store your Youtube api key,
-also, you can give mpv custom flag options like so:
+You need to create a `.env` to store your Youtube api key, also, you can give mpv custom flag options like so:
 
 ```shell
 API_KEY=<insert_your_api_key>
-MPV_OPTION='--fs --ytdl-format=best[height<=720]'
+MPV_OPTION='--fs'
 ```
