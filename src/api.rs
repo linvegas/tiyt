@@ -1,5 +1,4 @@
 use std::env;
-use tokio;
 use reqwest;
 use serde_json;
 use serde::Deserialize;
@@ -92,18 +91,13 @@ async fn get_search_resutls(query: &str) -> Result<(SearchResponse, VideoDetailR
     Ok((search_data, details_data))
 }
 
-pub fn search(query: &str) -> Vec<Vec<String>> {
+pub async fn search(query: &str) -> Vec<Vec<String>> {
     let query = query
         .split_whitespace()
         .collect::<Vec<&str>>()
         .join("+");
 
-    let (results, details) = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(get_search_resutls(&query))
-        .unwrap();
+    let (results, details) = get_search_resutls(&query).await.unwrap();
 
     let mut data: Vec<Vec<String>> = Vec::new();
 

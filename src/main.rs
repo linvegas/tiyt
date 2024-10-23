@@ -1,5 +1,6 @@
 use std::io;
 use std::env;
+use tokio;
 
 mod api;
 
@@ -73,7 +74,8 @@ struct App {
     tabs: Vec<String>,
 }
 
-fn main() -> io::Result<()> {
+#[tokio::main]
+async fn main() -> io::Result<()> {
     dotenv::dotenv().ok();
 
     io::stdout().execute(EnterAlternateScreen)?;
@@ -81,7 +83,7 @@ fn main() -> io::Result<()> {
 
     let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
 
-    App::new().run(terminal)?;
+    App::new().run(terminal).await?;
 
     io::stdout().execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
@@ -107,10 +109,10 @@ impl App {
         }
     }
 
-    fn run(&mut self,mut terminal: Terminal<impl Backend>) -> io::Result<()> {
+    async fn run(&mut self,mut terminal: Terminal<impl Backend>) -> io::Result<()> {
         while self.running {
             self.draw(&mut terminal)?;
-            self.handle_event()?;
+            self.handle_event().await?;
         }
         Ok(())
     }
@@ -126,7 +128,7 @@ impl App {
         Ok(())
     }
 
-    fn handle_event(&mut self) -> io::Result<()> {
+    async fn handle_event(&mut self) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             match self.mode {
                 Mode::Normal => {
@@ -158,7 +160,7 @@ impl App {
                     match key.code {
                         KeyCode::Char(c)   => self.insert_search_char(c),
                         KeyCode::Backspace => self.delete_search_char(),
-                        KeyCode::Enter     => self.submit_input(),
+                        KeyCode::Enter     => self.submit_input().await,
                         KeyCode::Left      => self.move_cursor_left(),
                         KeyCode::Right     => self.move_cursor_right(),
                         KeyCode::Esc       => self.mode = Mode::Normal,
@@ -204,8 +206,8 @@ impl App {
             .clamp(0, self.search_input.chars().count());
     }
 
-    fn submit_input(&mut self) {
-        let data: Vec<Vec<String>> = api::search(&self.search_input);
+    async fn submit_input(&mut self) {
+        let data: Vec<Vec<String>> = api::search(&self.search_input).await;
 
         self.search_results = SearchResults {
             items: data.into_iter().map(|item| {
@@ -241,7 +243,7 @@ impl App {
             let _ = std::process::Command::new("mpv")
                 .args(mpv_option.split_whitespace())
                 .arg(link)
-                .output();
+                .spawn();
         }
     }
 
