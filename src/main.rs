@@ -31,8 +31,8 @@ use ratatui::{
     style::Stylize,
     widgets::{
         Tabs, Table, // Borders,
-        Row, Block, Paragraph, TableState
-        // List,
+        Row, Block, Paragraph, TableState,
+        List,
     },
 };
 
@@ -207,7 +207,7 @@ impl App {
     }
 
     async fn submit_input(&mut self) {
-        let data: Vec<Vec<String>> = api::search(&self.search_input).await;
+        let data: Vec<Vec<String>> = api::get_search_list(&self.search_input).await;
 
         self.search_results = SearchResults {
             items: data.into_iter().map(|item| {
@@ -243,6 +243,7 @@ impl App {
             let _ = std::process::Command::new("mpv")
                 .args(mpv_option.split_whitespace())
                 .arg(link)
+                .stdout(std::process::Stdio::null())
                 .spawn();
         }
     }
@@ -298,8 +299,8 @@ impl App {
             .block(Block::bordered().title("Input").style(input_style))
             .render(input, buffer);
 
-        let result_layout = Layout::horizontal([
-            Constraint::Percentage(if self.show_info { 70 } else { 100 }),
+        let result_layout = Layout::vertical([
+            Constraint::Percentage(if self.show_info { 30 } else { 100 }),
             Constraint::Min(0),
         ]);
 
@@ -368,6 +369,7 @@ impl App {
         //     .render(results, buffer);
     }
 
+    // TODO: Render the channel videos list
     fn render_subs(&mut self, area: Rect, buffer: &mut Buffer) {
         let subs_layout = Layout::horizontal([
             Constraint::Percentage(30),
@@ -379,6 +381,11 @@ impl App {
         Block::bordered()
             .title("Channels")
             .render(channels, buffer);
+
+        // Widget::render(
+        //     List::new(vec!["Tsoding"]).block(channels_block),
+        //     channels, buffer
+        // );
 
         Block::bordered()
             .title("Feed")
